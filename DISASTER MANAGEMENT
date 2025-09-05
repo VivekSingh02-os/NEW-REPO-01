@@ -1,0 +1,644 @@
+import React, { useMemo, useState, useRef, Suspense } from "react";
+import { motion } from "framer-motion";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Shield,
+  AlertTriangle,
+  Map as MapIcon,
+  Phone,
+  Activity,
+  Users,
+  Bell,
+  Radar,
+  TrendingUp,
+  BarChart3,
+  Siren,
+  MessageSquare,
+  Download,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+} from "recharts";
+
+// 3D — Three.js (via react-three-fiber & drei)
+import * as THREE from "three";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Stage, useGLTF, Html, Float } from "@react-three/drei";
+
+/**
+ * Disaster Management – Smart App + Dashboard (3D Enhanced)
+ * Tailwind + shadcn/ui + lucide-react + recharts + @react-three/fiber + drei
+ */
+
+const drillsData = [
+  { name: "Jan", drills: 12, participation: 72 },
+  { name: "Feb", drills: 15, participation: 76 },
+  { name: "Mar", drills: 18, participation: 81 },
+  { name: "Apr", drills: 14, participation: 79 },
+  { name: "May", drills: 20, participation: 85 },
+  { name: "Jun", drills: 22, participation: 88 },
+];
+
+const incidentsData = [
+  { name: "Week 1", reports: 4 },
+  { name: "Week 2", reports: 6 },
+  { name: "Week 3", reports: 3 },
+  { name: "Week 4", reports: 5 },
+];
+
+const contacts = [
+  { role: "Fire Brigade", phone: "+91 101" },
+  { role: "Police", phone: "+91 100" },
+  { role: "Ambulance", phone: "+91 102" },
+  { role: "Disaster Helpline (NDMA)", phone: "+91 1078" },
+  { role: "Campus Control Room", phone: "+91 99999 00000" },
+];
+
+const safeZones = [
+  { name: "Assembly Point A", details: "Near Main Gate – open ground" },
+  { name: "Assembly Point B", details: "Sports Complex – west stand" },
+  { name: "Shelter Hall", details: "Block C – ground floor" },
+];
+
+function Section({ id, title, icon: Icon, children, description }: any) {
+  return (
+    <section id={id} className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+      <div className="flex items-start gap-4 mb-6">
+        <div className="rounded-2xl p-3 bg-muted shadow-sm">
+          <Icon className="w-6 h-6" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+          {description && (
+            <p className="text-muted-foreground mt-1 max-w-2xl">{description}</p>
+          )}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// ===== 3D Components =====
+function SafeMarker({ position = [0, 0, 0], label = "Safe" }: any) {
+  const color = new THREE.Color('#00ffb3');
+  return (
+    <group position={position as any}>
+      <mesh>
+        <sphereGeometry args={[0.15, 32, 32]} />
+        <meshStandardMaterial emissive={color} emissiveIntensity={1.2} color={color} />
+      </mesh>
+      <Float speed={2} floatIntensity={1}>
+        <Html distanceFactor={8} style={{ background: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: 8, color: 'white', fontSize: 12 }}>
+          {label}
+        </Html>
+      </Float>
+    </group>
+  );
+}
+
+function EvacuationArrow({ position = [0, 0.05, 0], rotation = [ -Math.PI/2, 0, 0 ] }: any) {
+  const ref = useRef<any>();
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.material.emissiveIntensity = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.5; // pulse glow
+    }
+  });
+  return (
+    <mesh position={position as any} rotation={rotation as any} ref={ref}>
+      <coneGeometry args={[0.15, 0.4, 16]} />
+      <meshStandardMaterial color={'#ff7300'} emissive={'#ff7300'} emissiveIntensity={1.2} />
+    </mesh>
+  );
+}
+
+function BuildingScene(props: any) {
+  // Put your GLB/GLTF model in public/models/campus_building.glb
+  const { scene } = useGLTF('/models/campus_building.glb');
+  return <primitive object={scene} {...props} />;
+}
+
+function DrillSimulation3D() {
+  return (
+    <div className="h-64 w-full rounded-xl border overflow-hidden">
+      <Canvas camera={{ position: [4, 3, 5], fov: 45 }} shadows>
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 8, 5]} castShadow intensity={1} />
+        <Suspense fallback={null}>
+          <Stage intensity={0.5} environment="city">
+            <BuildingScene scale={0.4} />
+            {/* Glowing guidance arrows toward exit */}
+            <EvacuationArrow position={[0.5, 0.05, -0.5]} />
+            <EvacuationArrow position={[1.0, 0.05, -0.2]} />
+            <EvacuationArrow position={[1.5, 0.05, 0.1]} />
+            {/* Safe zone beacon */}
+            <SafeMarker position={[2.0, 0.15, 0.5]} label="Assembly Point" />
+          </Stage>
+          <OrbitControls enablePan enableZoom enableRotate />
+        </Suspense>
+      </Canvas>
+    </div>
+  );
+}
+
+function MiniMap3D() {
+  return (
+    <div className="h-[360px] w-full rounded-2xl border overflow-hidden grid">
+      <Canvas camera={{ position: [6, 7, 6], fov: 50 }}>
+        <ambientLight intensity={0.7} />
+        <pointLight position={[10, 10, 10]} />
+        <Suspense fallback={null}>
+          <Stage intensity={0.4}>
+            <BuildingScene scale={0.5} />
+            {/* Safe zones around campus */}
+            <SafeMarker position={[1.5, 0.1, -1.2]} label="Point A" />
+            <SafeMarker position={[-1.2, 0.1, 1.0]} label="Point B" />
+            <SafeMarker position={[0.2, 0.1, 1.6]} label="Shelter Hall" />
+          </Stage>
+          <OrbitControls enableZoom />
+        </Suspense>
+      </Canvas>
+    </div>
+  );
+}
+
+export default function DisasterPreparednessSite() {
+  const [smsEnabled, setSmsEnabled] = useState(true);
+  const [meshEnabled, setMeshEnabled] = useState(false);
+  const [openAlert, setOpenAlert] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filteredContacts = useMemo(() => {
+    if (!query.trim()) return contacts;
+    return contacts.filter((c) =>
+      `${c.role} ${c.phone}`.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [query]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      {/* Navbar */}
+      <header className="sticky top-0 z-40 border-b bg-background/70 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-6 h-6" />
+            <span className="font-semibold">SafeCampus</span>
+            <Badge className="ml-2" variant="secondary">Prototype</Badge>
+          </div>
+          <nav className="hidden md:flex items-center gap-6 text-sm">
+            <a href="#overview" className="hover:underline">Overview</a>
+            <a href="#drills" className="hover:underline">Drills & AR/VR</a>
+            <a href="#alerts" className="hover:underline">Alerts</a>
+            <a href="#map" className="hover:underline">Safe Zones</a>
+            <a href="#dashboards" className="hover:underline">Dashboards</a>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Dialog open={openAlert} onOpenChange={setOpenAlert}>
+              <DialogTrigger asChild>
+                <Button className="rounded-2xl" size="sm">
+                  <Siren className="w-4 h-4 mr-2" /> SOS
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Emergency SOS</DialogTitle>
+                  <DialogDescription>
+                    This sends a simulated alert to administrators and responders.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center gap-3">
+                  <Button onClick={() => setOpenAlert(false)} className="flex-1">
+                    <Bell className="w-4 h-4 mr-2" /> Send Alert (Demo)
+                  </Button>
+                  <Button variant="secondary" onClick={() => setOpenAlert(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <div className="border-b">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <h1 className="text-4xl font-bold tracking-tight leading-tight">
+                Disaster Preparedness & Response
+                <span className="block text-muted-foreground text-xl mt-2">for Schools & Colleges</span>
+              </h1>
+              <p className="text-muted-foreground mt-4">
+                Train, simulate, alert, and coordinate — all in one platform. Built
+                with an <b>offline-first</b> mindset, role-based access, and a focus on
+                student & teacher safety.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a href="#overview"><Button className="rounded-2xl"><Shield className="w-4 h-4 mr-2"/>Explore Platform</Button></a>
+                <a href="#drills"><Button variant="secondary" className="rounded-2xl"><Activity className="w-4 h-4 mr-2"/>Run a Demo Drill</Button></a>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge variant="outline">SMS Alerts</Badge>
+                <Badge variant="outline">Offline Mesh</Badge>
+                <Badge variant="outline">GPS Safe Zones</Badge>
+                <Badge variant="outline">AR/VR Training</Badge>
+                <Badge variant="outline">Admin Analytics</Badge>
+              </div>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}>
+              <Card className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle>Smart App + Dashboard</CardTitle>
+                  <CardDescription>Mobile app for students/teachers, web dashboard for admins.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-xl border p-4">
+                      <h3 className="font-medium mb-1 flex items-center gap-2"><Users className="w-4 h-4"/> Students & Teachers</h3>
+                      <ul className="text-sm text-muted-foreground list-disc ml-5 space-y-1">
+                        <li>Receive alerts, SOS</li>
+                        <li>Follow GPS to safe zones</li>
+                        <li>Gamified drills & badges</li>
+                      </ul>
+                    </div>
+                    <div className="rounded-xl border p-4">
+                      <h3 className="font-medium mb-1 flex items-center gap-2"><BarChart3 className="w-4 h-4"/> Administrators</h3>
+                      <ul className="text-sm text-muted-foreground list-disc ml-5 space-y-1">
+                        <li>Send campus-wide alerts</li>
+                        <li>Monitor readiness analytics</li>
+                        <li>Role-based access control</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      {/* Overview */}
+      <Section
+        id="overview"
+        title="Platform Overview"
+        icon={Shield}
+        description="Smart App + Dashboard for preparedness & response. Role-based access, secure by default, and built for low-connectivity environments."
+      >
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Bell className="w-5 h-5"/> Real-time Alerts</CardTitle>
+              <CardDescription>SMS + push; auto-fallback to offline mesh when needed.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between bg-muted rounded-xl p-3 mb-3">
+                <div className="flex items-center gap-2"><Label htmlFor="sms">SMS</Label><Switch id="sms" checked={smsEnabled} onCheckedChange={setSmsEnabled}/></div>
+                <div className="flex items-center gap-2"><Label htmlFor="mesh">Offline Mesh</Label><Switch id="mesh" checked={meshEnabled} onCheckedChange={setMeshEnabled}/></div>
+              </div>
+              <Button className="w-full rounded-2xl"><Bell className="w-4 h-4 mr-2"/>Send Test Alert</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Emergency Readiness</CardTitle>
+              <CardDescription>Track drills, participation, and readiness score.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={drillsData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="drills" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="text-xs text-muted-foreground mt-2">Monthly drills conducted</div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><TrendingUp className="w-5 h-5"/> Participation</CardTitle>
+              <CardDescription>Gamification boosts engagement.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={drillsData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="participation" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="text-xs text-muted-foreground mt-2">Participation rate (%)</div>
+            </CardContent>
+          </Card>
+        </div>
+      </Section>
+
+      {/* Drills & AR/VR */}
+      <Section
+        id="drills"
+        title="Gamified Drills & AR/VR Simulations"
+        icon={Activity}
+        description="Run guided drills, unlock badges, and practice via live 3D scenes (earthquake, fire, flood)."
+      >
+        <div className="grid md:grid-cols-3 gap-6">
+          {["Fire Evacuation", "Earthquake Drop-Cover-Hold", "Flood Route Planning"].map((label) => (
+            <Card key={label} className="rounded-2xl">
+              <CardHeader>
+                <CardTitle className="text-base">{label}</CardTitle>
+                <CardDescription>10–15 min guided simulation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <DrillSimulation3D />
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">XP +50</Badge>
+                  <Badge>Badge</Badge>
+                </div>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full rounded-2xl"><Radar className="w-4 h-4 mr-2"/>Launch Simulation</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{label}</DialogTitle>
+                      <DialogDescription>Demo simulation modal with steps.</DialogDescription>
+                    </DialogHeader>
+                    <ol className="list-decimal ml-5 space-y-2 text-sm">
+                      <li>Read the scenario brief.</li>
+                      <li>Follow on-screen prompts to practice safely.</li>
+                      <li>Complete the checklist to earn your badge.</li>
+                    </ol>
+                    <div className="flex justify-end gap-2 mt-3">
+                      <Button variant="secondary">Mark as Complete</Button>
+                      <Button>Continue</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Alerts & Contacts */}
+      <Section
+        id="alerts"
+        title="Emergency Contacts & Real-time Alerts"
+        icon={Phone}
+        description="One-tap SOS, directory search, and simulated SMS/push broadcast."
+      >
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="rounded-2xl lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Emergency Contact Directory</CardTitle>
+              <CardDescription>Search, click-to-call, keep this list offline.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3 mb-4">
+                <Input placeholder="Search contacts (e.g., Fire, 100)" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <Button variant="secondary" className="rounded-2xl"><Download className="w-4 h-4 mr-2"/>Save Offline</Button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {filteredContacts.map((c) => (
+                  <div key={c.role} className="border rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{c.role}</div>
+                      <div className="text-sm text-muted-foreground">{c.phone}</div>
+                    </div>
+                    <a href={`tel:${c.phone}`}>
+                      <Button className="rounded-2xl" size="sm"><Phone className="w-4 h-4 mr-2"/> Call</Button>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>Broadcast an Alert (Demo)</CardTitle>
+              <CardDescription>Choose channels and send a simulated message.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between bg-muted rounded-xl p-3">
+                <div className="flex items-center gap-2"><Label htmlFor="sms2">SMS</Label><Switch id="sms2" checked={smsEnabled} onCheckedChange={setSmsEnabled}/></div>
+                <div className="flex items-center gap-2"><Label htmlFor="mesh2">Offline Mesh</Label><Switch id="mesh2" checked={meshEnabled} onCheckedChange={setMeshEnabled}/></div>
+              </div>
+              <Input placeholder="Type an alert (e.g., Fire drill at 10:30 AM, proceed to Point A)" />
+              <Button className="w-full rounded-2xl"><Bell className="w-4 h-4 mr-2"/> Send Broadcast</Button>
+              <p className="text-xs text-muted-foreground">* Demo only. Integrate SMS Gateway & FCM for production.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </Section>
+
+      {/* Safe Zones & Map */}
+      <Section
+        id="map"
+        title="Safe Zone Maps with GPS & Offline Access"
+        icon={MapIcon}
+        description="Preview of campus safe zones in 3D. Integrate Maps SDK for live navigation; cache tiles for offline."
+      >
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Card className="rounded-2xl lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Campus 3D Mini-Map</CardTitle>
+              <CardDescription>Interactive building with glowing safe zones.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MiniMap3D />
+            </CardContent>
+          </Card>
+          <div className="space-y-3">
+            {safeZones.map((z) => (
+              <Card key={z.name} className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle className="text-base">{z.name}</CardTitle>
+                  <CardDescription>{z.details}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center gap-2">
+                  <Button className="rounded-2xl flex-1"><MapIcon className="w-4 h-4 mr-2"/> Navigate</Button>
+                  <Button variant="secondary" className="rounded-2xl">Cache Offline</Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* Role-based Dashboards */}
+      <Section
+        id="dashboards"
+        title="Role-based Dashboards & Admin Analytics"
+        icon={BarChart3}
+        description="Switch between Student, Teacher, and Admin views. Admins see KPI charts and recent reports."
+      >
+        <Tabs defaultValue="student" className="w-full">
+          <TabsList className="grid grid-cols-3 w-full">
+            <TabsTrigger value="student">Student</TabsTrigger>
+            <TabsTrigger value="teacher">Teacher</TabsTrigger>
+            <TabsTrigger value="admin">Admin</TabsTrigger>
+          </TabsList>
+          <TabsContent value="student">
+            <div className="grid md:grid-cols-3 gap-6">
+              <Card className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle>Your Readiness</CardTitle>
+                  <CardDescription>Complete drills to level up.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-4xl font-bold">82%</div>
+                  <p className="text-xs text-muted-foreground mt-1">Based on last 90 days</p>
+                  <div className="mt-3 flex gap-2">
+                    <Badge>Level 4</Badge>
+                    <Badge variant="secondary">3 Badges</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Upcoming</CardTitle>
+                  <CardDescription>Next drill & safety notices</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="border rounded-xl p-3">Fire Drill – Friday 10:30 AM – Assembly Point A</div>
+                  <div className="border rounded-xl p-3">First-aid Workshop – Monday 3:00 PM – Lab 2</div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          <TabsContent value="teacher">
+            <div className="grid md:grid-cols-3 gap-6">
+              <Card className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle>Class Roster</CardTitle>
+                  <CardDescription>Track acknowledgements</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between border rounded-xl p-2">
+                      <span>Student #{i + 1}</span>
+                      <Badge variant="secondary">Ack</Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Announcements</CardTitle>
+                  <CardDescription>Create quick safety notes</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Input placeholder="Type a class announcement" />
+                  <Button className="rounded-2xl"><MessageSquare className="w-4 h-4 mr-2"/> Post</Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          <TabsContent value="admin">
+            <div className="grid lg:grid-cols-3 gap-6">
+              <Card className="rounded-2xl lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Readiness KPIs</CardTitle>
+                  <CardDescription>Drills & reports over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={drillsData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="drills" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="rounded-2xl">
+                <CardHeader>
+                  <CardTitle>Recent Incident Reports</CardTitle>
+                  <CardDescription>Week-over-week</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={incidentsData} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="reports" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </Section>
+
+      {/* Footer */}
+      <footer className="border-t mt-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 text-sm text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4"/>
+            <span>SafeCampus Prototype</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <a href="#overview" className="hover:underline">Overview</a>
+            <a href="#drills" className="hover:underline">Drills</a>
+            <a href="#alerts" className="hover:underline">Alerts</a>
+            <a href="#map" className="hover:underline">Safe Zones</a>
+            <a href="#dashboards" className="hover:underline">Dashboards</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
